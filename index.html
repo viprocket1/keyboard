@@ -3,157 +3,449 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Speed Typer</title>
+    <title>NEON TYPER: Geometry Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #f0f4f8;
-            --box-color: #ffffff;
-            --text-color: #333;
-            --highlight: #3b82f6;
-            --correct: #22c55e;
-            --incorrect: #ef4444;
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --primary: #00f0ff; /* Neon Cyan */
+            --secondary: #ff003c; /* Neon Red */
+            --accent: #facc15; /* Neon Yellow */
+            --text-dim: #64748b;
+            --text-bright: #ffffff;
         }
+
+        * { box-sizing: border-box; }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
             margin: 0;
-            color: var(--text-color);
+            height: 100vh;
+            background-color: var(--bg);
+            color: var(--text-bright);
+            font-family: 'Space Mono', monospace;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            perspective: 1000px;
         }
 
-        .container {
-            background: var(--box-color);
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            width: 700px;
-            max-width: 90%;
+        /* --- GEOMETRIC BACKGROUND --- */
+        .geo-bg {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+        .shape {
+            position: absolute;
+            background: linear-gradient(45deg, var(--primary), transparent);
+            opacity: 0.1;
+            border-radius: 10%;
+            animation: float 20s infinite linear;
+        }
+        .shape:nth-child(1) { width: 300px; height: 300px; top: 10%; left: 10%; animation-duration: 25s; }
+        .shape:nth-child(2) { width: 200px; height: 200px; bottom: 20%; right: 10%; background: var(--secondary); animation-duration: 15s; animation-direction: reverse; }
+        .shape:nth-child(3) { width: 150px; height: 150px; top: 40%; left: 60%; background: var(--accent); border-radius: 50%; }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            50% { transform: translate(20px, 40px) rotate(180deg); }
+            100% { transform: translate(0, 0) rotate(360deg); }
+        }
+
+        /* --- UI ELEMENTS --- */
+        .hud {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            z-index: 10;
+        }
+
+        .hud-item {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid var(--primary);
+            padding: 10px 20px;
+            border-radius: 4px;
+            box-shadow: 0 0 10px var(--primary);
             text-align: center;
         }
 
-        h1 { margin-top: 0; color: var(--highlight); }
+        .hud-value {
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--primary);
+            display: block;
+        }
+        .hud-label { font-size: 0.8rem; color: var(--text-dim); }
 
-        .stats-bar {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 1.5rem;
-            font-size: 1.1rem;
-            font-weight: bold;
-            background: #eef2ff;
-            padding: 10px 20px;
-            border-radius: 8px;
+        /* --- GAME AREA --- */
+        .game-container {
+            position: relative;
+            width: 900px;
+            max-width: 90%;
+            text-align: left;
+            z-index: 2;
         }
 
-        .quote-display {
-            font-size: 1.5rem;
-            margin-bottom: 1.5rem;
-            line-height: 1.6;
-            min-height: 100px;
-            user-select: none; /* Prevent cheating by highlighting */
+        .word-display {
+            font-size: 2.5rem;
+            line-height: 1.5;
+            color: var(--text-dim);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            user-select: none;
+            background: rgba(30, 41, 59, 0.8);
+            padding: 2rem;
+            border-radius: 16px;
+            border: 2px solid #334155;
+            backdrop-filter: blur(5px);
+            transition: border-color 0.2s;
+            max-height: 300px;
+            overflow: hidden;
+            position: relative;
         }
 
-        .quote-input {
+        .word-display.active-border { border-color: var(--primary); }
+        .word-display.error-border { border-color: var(--secondary); animation: shake 0.4s; }
+
+        /* Typography */
+        .char { position: relative; transition: color 0.1s; }
+        .char.correct { color: var(--text-bright); text-shadow: 0 0 10px var(--primary); }
+        .char.incorrect { color: var(--secondary); text-decoration: underline; text-shadow: 0 0 10px var(--secondary); }
+        .char.current { background-color: var(--primary); color: #000; padding: 0 2px; border-radius: 2px; }
+
+        /* Hidden Input */
+        .input-field {
+            position: absolute;
+            opacity: 0;
+            z-index: 1;
+        }
+
+        /* --- TIMER BAR --- */
+        .timer-bar-container {
             width: 100%;
-            height: 80px;
-            padding: 10px;
-            font-size: 1.2rem;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            resize: none;
-            outline: none;
-            font-family: inherit;
+            height: 6px;
+            background: #334155;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .timer-bar {
+            height: 100%;
+            background: var(--primary);
+            width: 100%;
+            transition: width 1s linear;
+            box-shadow: 0 0 15px var(--primary);
         }
 
-        .quote-input:focus { border-color: var(--highlight); }
+        /* --- EFFECTS --- */
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            50% { transform: translateX(10px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
 
-        /* Typography Styling */
-        span { position: relative; }
-        .correct { color: var(--correct); }
-        .incorrect { color: var(--incorrect); text-decoration: underline; }
-        
+        /* Particles */
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            background: var(--primary);
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            animation: pop 0.5s forwards;
+        }
+        @keyframes pop {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+        }
+
+        /* Combo Popup */
+        .combo-text {
+            position: absolute;
+            font-family: 'Orbitron';
+            font-weight: 900;
+            color: var(--accent);
+            font-size: 3rem;
+            pointer-events: none;
+            animation: floatUp 1s forwards;
+            text-shadow: 0 0 20px var(--accent);
+            z-index: 20;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(0.5); opacity: 0; }
+            20% { transform: translateY(-20px) scale(1.2); opacity: 1; }
+            100% { transform: translateY(-100px) scale(1); opacity: 0; }
+        }
+
+        /* Start / End Screens */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            text-align: center;
+        }
+        .hidden { display: none !important; }
+
         button {
-            margin-top: 1rem;
-            padding: 10px 20px;
-            font-size: 1rem;
-            background-color: var(--highlight);
-            color: white;
+            background: var(--primary);
+            color: #000;
+            font-family: 'Orbitron';
+            font-size: 1.5rem;
+            font-weight: 700;
+            padding: 1rem 3rem;
             border: none;
-            border-radius: 6px;
+            border-radius: 4px;
             cursor: pointer;
-            transition: background 0.2s;
+            box-shadow: 0 0 20px var(--primary);
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 2rem;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 40px var(--primary);
         }
 
-        button:hover { background-color: #2563eb; }
+        h1 { font-family: 'Orbitron'; font-size: 4rem; margin: 0; color: var(--primary); text-shadow: 0 0 20px var(--primary); }
+        h2 { color: var(--text-bright); margin-bottom: 2rem; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>⚡ Speed Typer</h1>
-        
-        <div class="stats-bar">
-            <span>Time: <span id="timer">0</span>s</span>
-            <span>WPM: <span id="wpm">0</span></span>
-            <span>Accuracy: <span id="accuracy">100</span>%</span>
-        </div>
+    <div class="geo-bg">
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+    </div>
 
-        <div class="quote-display" id="quoteDisplay">
+    <div class="timer-bar-container">
+        <div class="timer-bar" id="timerBar"></div>
+    </div>
+
+    <div class="overlay" id="startScreen">
+        <h1>NEON TYPER</h1>
+        <h2>60 Seconds. Infinite Geometry.</h2>
+        <button onclick="startGame()">INITIATE</button>
+    </div>
+
+    <div class="overlay hidden" id="endScreen">
+        <h1>SYSTEM HALTED</h1>
+        <div class="hud" style="margin-top: 2rem;">
+            <div class="hud-item">
+                <span class="hud-value" id="finalWpm">0</span>
+                <span class="hud-label">WPM</span>
             </div>
+            <div class="hud-item">
+                <span class="hud-value" id="finalAcc">0%</span>
+                <span class="hud-label">ACCURACY</span>
+            </div>
+        </div>
+        <button onclick="startGame()">REBOOT</button>
+    </div>
 
-        <textarea class="quote-input" id="quoteInput" placeholder="Start typing here..."></textarea>
-        
-        <button onclick="renderNewQuote()">Restart Test</button>
+    <div class="hud">
+        <div class="hud-item">
+            <span class="hud-value" id="score">0</span>
+            <span class="hud-label">SCORE</span>
+        </div>
+        <div class="hud-item">
+            <span class="hud-value" id="time">60</span>
+            <span class="hud-label">SECONDS</span>
+        </div>
+        <div class="hud-item">
+            <span class="hud-value" id="wpm">0</span>
+            <span class="hud-label">WPM</span>
+        </div>
+    </div>
+
+    <div class="game-container">
+        <div class="word-display" id="display"></div>
+        <input type="text" class="input-field" id="input" autocomplete="off">
     </div>
 
     <script>
-        const RANDOM_QUOTES = [
-            "The quick brown fox jumps over the lazy dog.",
-            "Technology is best when it brings people together.",
-            "It does not matter how slowly you go as long as you do not stop.",
-            "Success is not final, failure is not fatal: it is the courage to continue that counts.",
-            "In the middle of every difficulty lies opportunity.",
-            "Simplicity is the ultimate sophistication.",
-            "Code is like humor. When you have to explain it, it’s bad."
+        // --- GAME CONFIG & STATE ---
+        const GAME_DURATION = 60;
+        const WORDS = [
+            "cyber", "neon", "matrix", "geometry", "velocity", "system", "hacker", "code", 
+            "future", "digital", "analog", "synth", "wave", "laser", "robot", "plasma",
+            "circuit", "node", "data", "stream", "power", "energy", "visual", "audio",
+            "glitch", "pixel", "vector", "render", "shader", "engine", "logic", "core",
+            "quantum", "neural", "network", "protocol", "access", "denied", "uplink", "proxy",
+            "the", "quick", "brown", "fox", "jumps", "over", "lazy", "dog", "focus", "speed"
         ];
-
-        const quoteDisplayElement = document.getElementById('quoteDisplay');
-        const quoteInputElement = document.getElementById('quoteInput');
-        const timerElement = document.getElementById('timer');
-        const wpmElement = document.getElementById('wpm');
-        const accuracyElement = document.getElementById('accuracy');
-
-        let startTime;
+        
+        let timeLeft = GAME_DURATION;
         let timerInterval;
-        let isTimerStarted = false;
+        let gameActive = false;
+        let currentWordIndex = 0;
+        let correctKeystrokes = 0;
+        let totalKeystrokes = 0;
+        let score = 0;
+        let combo = 0;
+        let generatedText = "";
+        
+        // DOM Elements
+        const display = document.getElementById('display');
+        const input = document.getElementById('input');
+        const timeEl = document.getElementById('time');
+        const scoreEl = document.getElementById('score');
+        const wpmEl = document.getElementById('wpm');
+        const timerBar = document.getElementById('timerBar');
+        const startScreen = document.getElementById('startScreen');
+        const endScreen = document.getElementById('endScreen');
 
-        quoteInputElement.addEventListener('input', () => {
-            // Start timer on first keystroke
-            if (!isTimerStarted) {
-                startTimer();
-                isTimerStarted = true;
+        // --- CORE FUNCTIONS ---
+
+        function generateText() {
+            // Generate 100 random words
+            let text = [];
+            for(let i=0; i<60; i++) {
+                text.push(WORDS[Math.floor(Math.random() * WORDS.length)]);
+            }
+            return text.join(' ');
+        }
+
+        function renderText() {
+            display.innerHTML = '';
+            generatedText.split('').forEach(char => {
+                const span = document.createElement('span');
+                span.innerText = char;
+                span.classList.add('char');
+                display.appendChild(span);
+            });
+            // Highlight first char
+            display.children[0].classList.add('current');
+        }
+
+        function startGame() {
+            // Reset State
+            timeLeft = GAME_DURATION;
+            correctKeystrokes = 0;
+            totalKeystrokes = 0;
+            score = 0;
+            combo = 0;
+            gameActive = true;
+            input.value = '';
+            generatedText = generateText();
+            
+            // UI Reset
+            startScreen.classList.add('hidden');
+            endScreen.classList.add('hidden');
+            timeEl.innerText = timeLeft;
+            scoreEl.innerText = '0';
+            wpmEl.innerText = '0';
+            timerBar.style.width = '100%';
+            
+            renderText();
+            input.focus();
+
+            // Start Loop
+            clearInterval(timerInterval);
+            timerInterval = setInterval(gameLoop, 1000);
+        }
+
+        function gameLoop() {
+            timeLeft--;
+            timeEl.innerText = timeLeft;
+            const percentage = (timeLeft / GAME_DURATION) * 100;
+            timerBar.style.width = percentage + '%';
+
+            // Calculate Live WPM
+            const timeElapsed = GAME_DURATION - timeLeft;
+            const wpm = Math.round((correctKeystrokes / 5) / (timeElapsed / 60));
+            wpmEl.innerText = wpm > 0 ? wpm : 0;
+
+            if (timeLeft <= 0) {
+                endGame();
+            }
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            gameActive = false;
+            endScreen.classList.remove('hidden');
+            
+            // Calculate Stats
+            const wpm = Math.round((correctKeystrokes / 5) / (GAME_DURATION / 60));
+            const acc = Math.round((correctKeystrokes / totalKeystrokes) * 100) || 0;
+            
+            document.getElementById('finalWpm').innerText = wpm;
+            document.getElementById('finalAcc').innerText = acc + '%';
+        }
+
+        function spawnParticles(x, y) {
+            for(let i=0; i<5; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('particle');
+                document.body.appendChild(particle);
+                
+                // Random destination
+                const tx = (Math.random() - 0.5) * 100 + 'px';
+                const ty = (Math.random() - 0.5) * 100 + 'px';
+                
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                particle.style.setProperty('--tx', tx);
+                particle.style.setProperty('--ty', ty);
+                
+                // Cleanup
+                setTimeout(() => particle.remove(), 500);
+            }
+        }
+
+        function showCombo(x, y, val) {
+            const el = document.createElement('div');
+            el.classList.add('combo-text');
+            el.innerText = val + "x COMBO!";
+            el.style.left = (x + 20) + 'px';
+            el.style.top = (y - 40) + 'px';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 1000);
+        }
+
+        // --- INPUT HANDLING ---
+
+        input.addEventListener('input', () => {
+            if (!gameActive) return;
+
+            const arrayQuote = display.querySelectorAll('.char');
+            const arrayValue = input.value.split('');
+            const currentInputIndex = arrayValue.length - 1; // Index of char just typed
+            
+            // Total strokes for accuracy
+            if (input.value.length > totalKeystrokes) {
+                totalKeystrokes++;
             }
 
-            const arrayQuote = quoteDisplayElement.querySelectorAll('span');
-            const arrayValue = quoteInputElement.value.split('');
-            let correctChars = 0;
-
+            // --- VALIDATION LOGIC ---
             let allCorrect = true;
-
+            
+            // Loop only updates classes visually
             arrayQuote.forEach((characterSpan, index) => {
                 const character = arrayValue[index];
+                
+                // Reset basic state
+                characterSpan.classList.remove('current');
 
                 if (character == null) {
                     characterSpan.classList.remove('correct');
                     characterSpan.classList.remove('incorrect');
-                    allCorrect = false;
                 } else if (character === characterSpan.innerText) {
                     characterSpan.classList.add('correct');
                     characterSpan.classList.remove('incorrect');
-                    correctChars++;
                 } else {
                     characterSpan.classList.remove('correct');
                     characterSpan.classList.add('incorrect');
@@ -161,66 +453,64 @@
                 }
             });
 
-            // Calculate Stats Live
-            if (arrayValue.length > 0) {
-                const accuracy = Math.round((correctChars / arrayValue.length) * 100);
-                accuracyElement.innerText = accuracy;
-                
-                // WPM Calculation: (All Typed Chars / 5) / (Time in minutes)
-                const timeInMinutes = (getTimerTime() / 60);
-                if (timeInMinutes > 0) {
-                    const wpm = Math.round((arrayValue.length / 5) / timeInMinutes);
-                    wpmElement.innerText = wpm;
-                }
+            // Set "Cursor"
+            if (arrayValue.length < arrayQuote.length) {
+                arrayQuote[arrayValue.length].classList.add('current');
             }
 
-            // End Condition
-            if (allCorrect && arrayValue.length === arrayQuote.length) {
-                clearInterval(timerInterval);
-                quoteInputElement.disabled = true;
-                quoteDisplayElement.innerHTML += "<br><strong>✨ Finished! Press Restart to try again.</strong>";
+            // --- GAME FEEL LOGIC ---
+            
+            // Detect the most recent key press result
+            if (arrayValue.length > 0) {
+                const lastCharIndex = arrayValue.length - 1;
+                const targetChar = arrayQuote[lastCharIndex].innerText;
+                const typedChar = arrayValue[lastCharIndex];
+
+                const spanRect = arrayQuote[lastCharIndex].getBoundingClientRect();
+
+                if (typedChar === targetChar) {
+                    // Correct!
+                    display.classList.add('active-border');
+                    setTimeout(() => display.classList.remove('active-border'), 100);
+                    
+                    correctKeystrokes++;
+                    combo++;
+                    score += (10 * combo);
+                    scoreEl.innerText = score;
+
+                    spawnParticles(spanRect.left, spanRect.top);
+                    
+                    if (combo % 10 === 0 && combo > 0) {
+                        showCombo(spanRect.left, spanRect.top, combo);
+                    }
+
+                } else {
+                    // Mistake!
+                    display.classList.add('error-border');
+                    setTimeout(() => display.classList.remove('error-border'), 300);
+                    combo = 0;
+                }
+            }
+            
+            // Auto-scroll logic if getting near bottom of visible area
+            const cursorObj = document.querySelector('.current');
+            if(cursorObj) {
+                // Determine if we need to scroll the div
+                 // Simple auto-scroll: ensure current char is in view
+                 cursorObj.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            // Win condition (rare in 60s but possible)
+            if (arrayValue.length === arrayQuote.length) {
+                endGame();
             }
         });
 
-        function getRandomQuote() {
-            return RANDOM_QUOTES[Math.floor(Math.random() * RANDOM_QUOTES.length)];
-        }
+        // Focus trap
+        document.addEventListener('click', () => {
+            if (gameActive) input.focus();
+        });
 
-        function renderNewQuote() {
-            // Reset everything
-            clearInterval(timerInterval);
-            isTimerStarted = false;
-            timerElement.innerText = 0;
-            wpmElement.innerText = 0;
-            accuracyElement.innerText = 100;
-            quoteInputElement.value = '';
-            quoteInputElement.disabled = false;
-            quoteInputElement.focus();
-
-            const quote = getRandomQuote();
-            quoteDisplayElement.innerHTML = '';
-            
-            // Split quote into individual spans for character-level styling
-            quote.split('').forEach(character => {
-                const characterSpan = document.createElement('span');
-                characterSpan.innerText = character;
-                quoteDisplayElement.appendChild(characterSpan);
-            });
-        }
-
-        function startTimer() {
-            startTime = new Date();
-            timerInterval = setInterval(() => {
-                timerElement.innerText = getTimerTime();
-            }, 1000);
-        }
-
-        function getTimerTime() {
-            return Math.floor((new Date() - startTime) / 1000);
-        }
-
-        // Initialize
-        renderNewQuote();
     </script>
 </body>
 </html>
